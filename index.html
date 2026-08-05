@@ -217,8 +217,12 @@
     font-size:10px;letter-spacing:0.12em;color:var(--amber);margin-bottom:8px;
   }
   #liveLocationPopup .pop-name{
-    font-size:14px;color:var(--paper);margin-bottom:10px;
-    padding-bottom:10px;border-bottom:1px solid var(--line);
+    font-size:11px;color:var(--paper-dim);margin-bottom:4px;
+  }
+  #liveLocationPopup .pop-leg{
+    font-family:'Big Shoulders Display',sans-serif;font-weight:700;
+    font-size:19px;line-height:1.15;color:var(--paper);
+    margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--line);
   }
   #liveLocationPopup .pop-row{
     display:flex;justify-content:space-between;gap:10px;
@@ -332,13 +336,14 @@
 
 <button id="liveLocationBtn" class="hidden">
   <span class="dot-icon"></span>
-  <span class="btn-text">Jump to current location</span>
+  <span class="btn-text">Where are we now?</span>
 </button>
 
 <div id="liveLocationPopup" class="hidden">
   <button id="liveLocationClose" aria-label="Close">&times;</button>
   <div class="pop-eyebrow">LIVE POSITION</div>
   <div class="pop-name" id="popName">—</div>
+  <div class="pop-leg" id="popLeg">—</div>
   <div class="pop-row"><span class="pop-label">Coordinates</span><span id="popCoords">—</span></div>
   <div class="pop-row"><span class="pop-label">Last ping</span><span id="popTime">—</span></div>
 </div>
@@ -845,7 +850,7 @@ map.on('load', () => {
    ============================================================ */
 const LIVE_LOCATION_ENDPOINT = '/.netlify/functions/live-location';
 const LIVE_LOCATION_FALLBACK = {
-  name: 'Test point (Noah Gettings, Peru)',
+  name: 'Test point (Peter and Carter, Peru)',
   device: 'inReach Mini 2',
   lat: -13.30512,
   lon: -72.114086,
@@ -868,6 +873,51 @@ async function fetchLiveLocation() {
   return LIVE_LOCATION_FALLBACK;
 }
 
+const popupEl = document.getElementById('liveLocationPopup');
+const popName = document.getElementById('popName');
+const popLeg = document.getElementById('popLeg');
+const popCoords = document.getElementById('popCoords');
+const popTime = document.getElementById('popTime');
+
+// How far off the mapped route (in miles) a position can be before we
+// stop attributing it to a specific leg and just call it a side quest.
+const ON_ROUTE_THRESHOLD_MI = 20;
+
+function currentLegLabel(lat, lon) {
+  let minDist = Infinity;
+  let nearestTitle = null;
+  for (const ch of CHAPTERS) {
+    const feature = featureByChapter.get(ch.key);
+    if (!feature) continue;
+    for (const c of feature.geometry.coordinates) {
+      const d = haversineMi([lon, lat], c);
+      if (d < minDist) {
+        minDist = d;
+        nearestTitle = ch.title;
+      }
+    }
+  }
+  if (!nearestTitle || minDist > ON_ROUTE_THRESHOLD_MI) return 'Side questing';
+  return nearestTitle;
+}
+
+function formatTimeAgo(iso) {
+  const ms = Date.now() - new Date(iso).getTime();
+  const min = Math.round(ms / 60000);
+  if (min < 60) return `${min} min ago`;
+  const hr = Math.round(min / 60);
+  if (hr < 48) return `${hr} hr ago`;
+  return `${Math.round(hr / 24)} days ago`;
+}
+
+function updatePopupContent(loc) {
+  popName.textContent = loc.name || 'Current position';
+  popLeg.textContent = currentLegLabel(loc.lat, loc.lon);
+  popCoords.textContent = `${loc.lat.toFixed(4)}, ${loc.lon.toFixed(4)}`;
+  popTime.textContent = `${formatTimeAgo(loc.timestampUTC)} (${new Date(loc.timestampUTC).toUTCString()})`;
+}
+
+
 function renderLiveLocation(loc) {
   liveLocation = loc;
   const src = map.getSource('live-position');
@@ -880,6 +930,10 @@ function renderLiveLocation(loc) {
   }
   liveBtn.classList.remove('hidden');
   liveBtn.title = `${loc.name} · last ping ${new Date(loc.timestampUTC).toUTCString()}`;
+  // Keep an already-open popup's text current too, not just the dot on the map.
+  if (!popupEl.classList.contains('hidden')) {
+    updatePopupContent(loc);
+  }
 }
 
 function initLiveLocation() {
@@ -904,20 +958,16 @@ function initLiveLocation() {
 
   fetchLiveLocation().then(renderLiveLocation);
 
-  const popup = document.getElementById('liveLocationPopup');
-  const popName = document.getElementById('popName');
-  const popCoords = document.getElementById('popCoords');
-  const popTime = document.getElementById('popTime');
-  const closeBtn = document.getElementById('liveLocationClose');
+  // Keep checking for a new position periodically, so anyone leaving this
+  // page open sees updates without needing to reload. This is independent
+  // of your Garmin device's own ping interval — that's the real ceiling on
+  // how fresh the data ever is; this just controls how often the page asks.
+  const LIVE_LOCATION_POLL_MS = 3 * 60 * 1000; // every 3 minutes
+  setInterval(() => {
+    fetchLiveLocation().then(renderLiveLocation);
+  }, LIVE_LOCATION_POLL_MS);
 
-  function formatTimeAgo(iso) {
-    const ms = Date.now() - new Date(iso).getTime();
-    const min = Math.round(ms / 60000);
-    if (min < 60) return `${min} min ago`;
-    const hr = Math.round(min / 60);
-    if (hr < 48) return `${hr} hr ago`;
-    return `${Math.round(hr / 24)} days ago`;
-  }
+  const closeBtn = document.getElementById('liveLocationClose');
 
   liveBtn.addEventListener('click', () => {
     if (!liveLocation) return;
@@ -930,13 +980,11 @@ function initLiveLocation() {
       essential: true,
     });
 
-    popName.textContent = liveLocation.name || 'Current position';
-    popCoords.textContent = `${liveLocation.lat.toFixed(4)}, ${liveLocation.lon.toFixed(4)}`;
-    popTime.textContent = `${formatTimeAgo(liveLocation.timestampUTC)} (${new Date(liveLocation.timestampUTC).toUTCString()})`;
-    popup.classList.remove('hidden');
+    updatePopupContent(liveLocation);
+    popupEl.classList.remove('hidden');
   });
 
-  closeBtn.addEventListener('click', () => popup.classList.add('hidden'));
+  closeBtn.addEventListener('click', () => popupEl.classList.add('hidden'));
 }
 
 function setRevealState(doneUpTo) {
