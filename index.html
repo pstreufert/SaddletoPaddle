@@ -886,6 +886,7 @@ const ON_ROUTE_THRESHOLD_MI = 20;
 function currentLegLabel(lat, lon) {
   let minDist = Infinity;
   let nearestTitle = null;
+  let nearestType = null;
   for (const ch of CHAPTERS) {
     const feature = featureByChapter.get(ch.key);
     if (!feature) continue;
@@ -894,11 +895,13 @@ function currentLegLabel(lat, lon) {
       if (d < minDist) {
         minDist = d;
         nearestTitle = ch.title;
+        nearestType = ch.type;
       }
     }
   }
   if (!nearestTitle || minDist > ON_ROUTE_THRESHOLD_MI) return 'Side questing';
-  return nearestTitle;
+  const verb = nearestType === 'river' ? 'Rafting' : 'Biking';
+  return `${verb} · ${nearestTitle}`;
 }
 
 function formatTimeAgo(iso) {
@@ -911,7 +914,7 @@ function formatTimeAgo(iso) {
 }
 
 function updatePopupContent(loc) {
-  popName.textContent = 'Pete and Carter';
+  popName.textContent = 'Pete and Carter are';
   popLeg.textContent = currentLegLabel(loc.lat, loc.lon);
   popCoords.textContent = `${loc.lat.toFixed(4)}, ${loc.lon.toFixed(4)}`;
   popTime.textContent = `${formatTimeAgo(loc.timestampUTC)} (${new Date(loc.timestampUTC).toUTCString()})`;
