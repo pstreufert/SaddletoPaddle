@@ -911,7 +911,7 @@ function formatTimeAgo(iso) {
 }
 
 function updatePopupContent(loc) {
-  popName.textContent = loc.name || 'Current position';
+  popName.textContent = 'Pete and Carter';
   popLeg.textContent = currentLegLabel(loc.lat, loc.lon);
   popCoords.textContent = `${loc.lat.toFixed(4)}, ${loc.lon.toFixed(4)}`;
   popTime.textContent = `${formatTimeAgo(loc.timestampUTC)} (${new Date(loc.timestampUTC).toUTCString()})`;
