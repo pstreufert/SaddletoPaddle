@@ -192,9 +192,15 @@
     100%{box-shadow:0 0 0 0 rgba(193,89,44,0);}
   }
   @media (max-width:640px){
-    #liveLocationBtn{top:auto;bottom:100px;right:16px;padding:10px 14px;}
-    #liveLocationBtn .btn-text{display:none;}
-    #liveLocationPopup{top:auto;bottom:150px;right:16px;left:16px;}
+    #liveLocationBtn{
+      top:auto;bottom:24px;left:16px;right:auto;
+      background:none;border:none;box-shadow:none;
+      padding:0;backdrop-filter:none;
+      color:#4A4A4A;
+    }
+    #liveLocationBtn .btn-text{display:inline;}
+    #liveLocationBtn .dot-icon{width:7px;height:7px;}
+    #liveLocationPopup{top:auto;bottom:64px;right:16px;left:16px;}
   }
 
   #liveLocationPopup{
