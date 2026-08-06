@@ -316,11 +316,16 @@
   }
 
   @media (max-width:640px){
-    .chapter{padding:6vh 5vw;}
-    .chapter .card{max-width:100%;padding:26px 22px 20px;}
+    .chapter{padding:4vh 5vw;}
+    .chapter .card{max-width:100%;padding:18px 16px 14px;}
+    .card h2{font-size:1.55rem;margin:0 0 10px;}
+    .card p{font-size:0.9rem;line-height:1.45;margin:0 0 8px;}
+    .card .legkind{margin-bottom:6px;font-size:10px;}
+    .card .miles-row{margin-top:12px;padding-top:10px;}
     .stamp{grid-template-columns:repeat(2,auto);}
     .stamp .cell:nth-child(2){border-right:none;}
     .hero-title-plate{max-width:100%;}
+    #peakLabels{display:none;}
   }
 
   @media (prefers-reduced-motion: reduce){
@@ -650,6 +655,22 @@ const traceStopEnd = document.getElementById('traceStopEnd');
 const traceGradientEl = document.getElementById('traceGradient');
 const MODE_COLOR = { bike: '#C1592C', connector: '#C1592C', river: '#3E92CC' };
 
+function smoothPathD(points) {
+  // Quadratic bezier through consecutive midpoints — smooths out sharp
+  // zigzags between points while keeping the curve close to the real data
+  // (no distortion of the underlying elevation values, just a softer render).
+  let d = `${points[0][0].toFixed(1)},${points[0][1].toFixed(1)}`;
+  for (let i = 1; i < points.length - 1; i++) {
+    const [x0, y0] = points[i];
+    const [x1, y1] = points[i + 1];
+    const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+    d += ` Q${x0.toFixed(1)},${y0.toFixed(1)} ${mx.toFixed(1)},${my.toFixed(1)}`;
+  }
+  const last = points[points.length - 1];
+  d += ` L${last[0].toFixed(1)},${last[1].toFixed(1)}`;
+  return d;
+}
+
 function buildElevationProfile() {
   const eles = ELEVATION_PROFILE.map(p => p[1]);
   const minE = Math.min(...eles), maxE = Math.max(...eles);
@@ -662,13 +683,9 @@ function buildElevationProfile() {
     return [x, y];
   });
 
-  let d = `M0,${PROFILE_H} L${profilePoints[0][0].toFixed(1)},${profilePoints[0][1].toFixed(1)}`;
-  let traceD = `M${profilePoints[0][0].toFixed(1)},${profilePoints[0][1].toFixed(1)}`;
-  for (let i = 1; i < profilePoints.length; i++) {
-    d += ` L${profilePoints[i][0].toFixed(1)},${profilePoints[i][1].toFixed(1)}`;
-    traceD += ` L${profilePoints[i][0].toFixed(1)},${profilePoints[i][1].toFixed(1)}`;
-  }
-  d += ` L${PROFILE_W},${PROFILE_H} Z`;
+  const curve = smoothPathD(profilePoints);
+  const d = `M0,${PROFILE_H} L${curve} L${PROFILE_W},${PROFILE_H} Z`;
+  const traceD = `M${curve}`;
   profileBg.setAttribute('d', d);
   profileFg.setAttribute('d', d);
   traceLine.setAttribute('d', traceD);
