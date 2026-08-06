@@ -914,25 +914,38 @@ const popTime = document.getElementById('popTime');
 // stop attributing it to a specific leg and just call it a side quest.
 const ON_ROUTE_THRESHOLD_MI = 20;
 
-function currentLegLabel(lat, lon) {
+function getLiveRouteState(lat, lon) {
   let minDist = Infinity;
-  let nearestTitle = null;
-  let nearestType = null;
+  let nearestKey = null;
+  let nearestFeature = null;
+  let nearestIdx = -1;
   for (const ch of CHAPTERS) {
     const feature = featureByChapter.get(ch.key);
     if (!feature) continue;
-    for (const c of feature.geometry.coordinates) {
-      const d = haversineMi([lon, lat], c);
+    const coords = feature.geometry.coordinates;
+    for (let i = 0; i < coords.length; i++) {
+      const d = haversineMi([lon, lat], coords[i]);
       if (d < minDist) {
         minDist = d;
-        nearestTitle = ch.title;
-        nearestType = ch.type;
+        nearestKey = ch.key;
+        nearestFeature = feature;
+        nearestIdx = i;
       }
     }
   }
-  if (!nearestTitle || minDist > ON_ROUTE_THRESHOLD_MI) return 'Side questing';
-  const verb = nearestType === 'river' ? 'Rafting' : 'Biking';
-  return `${verb} · ${nearestTitle}`;
+  if (!nearestFeature || minDist > ON_ROUTE_THRESHOLD_MI) {
+    return { onRoute: false };
+  }
+  const coords = nearestFeature.geometry.coordinates;
+  const fraction = coords.length > 1 ? nearestIdx / (coords.length - 1) : 0;
+  const ch = CHAPTERS.find(c => c.key === nearestKey);
+  return { onRoute: true, chapterKey: nearestKey, chapter: ch, feature: nearestFeature, fraction };
+}
+
+function legLabelFromState(state) {
+  if (!state.onRoute) return 'Side questing';
+  const verb = state.chapter.type === 'river' ? 'Rafting' : 'Biking';
+  return `${verb} · ${state.chapter.title}`;
 }
 
 function formatTimeAgo(iso) {
@@ -944,9 +957,9 @@ function formatTimeAgo(iso) {
   return `${Math.round(hr / 24)} days ago`;
 }
 
-function updatePopupContent(loc) {
+function updatePopupContent(loc, state) {
   popName.textContent = 'Pete and Carter are';
-  popLeg.textContent = currentLegLabel(loc.lat, loc.lon);
+  popLeg.textContent = legLabelFromState(state);
   popCoords.textContent = `${loc.lat.toFixed(4)}, ${loc.lon.toFixed(4)}`;
   popTime.textContent = `${formatTimeAgo(loc.timestampUTC)} (${new Date(loc.timestampUTC).toUTCString()})`;
 }
@@ -966,7 +979,7 @@ function renderLiveLocation(loc) {
   liveBtn.title = `${loc.name} · last ping ${new Date(loc.timestampUTC).toUTCString()}`;
   // Keep an already-open popup's text current too, not just the dot on the map.
   if (!popupEl.classList.contains('hidden')) {
-    updatePopupContent(loc);
+    updatePopupContent(loc, getLiveRouteState(loc.lat, loc.lon));
   }
 }
 
@@ -1005,6 +1018,34 @@ function initLiveLocation() {
 
   function jumpToLiveLocation() {
     if (!liveLocation) return;
+    const state = getLiveRouteState(liveLocation.lat, liveLocation.lon);
+
+    if (state.onRoute) {
+      const chapterEl = document.querySelector(`[data-chapter-key="${state.chapterKey}"]`);
+      if (chapterEl) chapterEl.scrollIntoView({ behavior: 'auto', block: 'center' });
+
+      // Sync the "already traveled" route styling, the progress bar, and the
+      // elevation-profile trace to match the live position, not just wherever
+      // the scroll happened to be before the button was clicked.
+      const doneUpTo = state.feature.properties.order - 1;
+      setRevealState(doneUpTo);
+      updateActiveSlice(state.feature, state.fraction);
+      updateJourneyProgress(state.feature, state.fraction);
+
+      // Scrolling can also trigger Scrollama's own chapter-camera transition
+      // asynchronously; give it a moment to settle, then apply the precise
+      // camera position last so it isn't overridden by that broader chapter
+      // framing.
+      setTimeout(() => flyToLivePosition(), 120);
+    } else {
+      flyToLivePosition();
+    }
+
+    updatePopupContent(liveLocation, state);
+    popupEl.classList.remove('hidden');
+  }
+
+  function flyToLivePosition() {
     map.flyTo({
       center: [liveLocation.lon, liveLocation.lat],
       zoom: 9,
@@ -1013,8 +1054,6 @@ function initLiveLocation() {
       duration: 1800,
       essential: true,
     });
-    updatePopupContent(liveLocation);
-    popupEl.classList.remove('hidden');
   }
 
   liveBtn.addEventListener('click', jumpToLiveLocation);
