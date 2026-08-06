@@ -113,13 +113,18 @@
     font-size:10px;letter-spacing:0.1em;text-transform:uppercase;
     color:var(--amber);margin-top:4px;display:block;
   }
+  .cue-row{
+    margin-top:56px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  }
   .scroll-cue{
-    margin-top:56px;font-family:'JetBrains Mono',monospace;font-size:12px;
+    font-family:'JetBrains Mono',monospace;font-size:12px;
     color:#4A4A4A;letter-spacing:0.08em;
     display:flex;align-items:center;gap:10px;
   }
   .scroll-cue .arrow{animation:bob 1.8s ease-in-out infinite;}
   @keyframes bob{0%,100%{transform:translateY(0);}50%{transform:translateY(6px);}}
+  .scroll-cue.live-cue{cursor:pointer;transition:opacity .4s ease;}
+  .scroll-cue.live-cue.hidden{opacity:0;pointer-events:none;}
 
   /* ---------- CHAPTERS ---------- */
   #story{position:relative;z-index:5;}
@@ -233,6 +238,7 @@
 
   @media (max-width:640px){
     #liveLocationBtn{display:none;}
+    #liveCueDesktop{display:none;}
     .scroll-cue.live-clickable{cursor:pointer;}
     #liveLocationPopup{
       top:auto;bottom:100px;right:16px;left:16px;width:auto;
@@ -393,7 +399,10 @@
     <div class="cell"><span class="num">6</span><span class="lbl">States</span></div>
     <div class="cell"><span class="num">1</span><span class="lbl">Bike, Asked to Do It All</span></div>
   </div>
-  <div class="scroll-cue" id="scrollCue"><span class="arrow">↓</span> <span id="scrollCueText">SCROLL TO FOLLOW THE ROUTE</span></div>
+  <div class="cue-row">
+    <div class="scroll-cue" id="scrollCue"><span class="arrow">↓</span> <span id="scrollCueText">SCROLL TO FOLLOW THE ROUTE</span></div>
+    <div class="scroll-cue live-cue hidden" id="liveCueDesktop">· <span id="liveCueText">JUMP TO OUR LOCATION</span></div>
+  </div>
 </div>
 
 <div id="story"></div>
@@ -976,6 +985,8 @@ function renderLiveLocation(loc) {
     });
   }
   liveBtn.classList.remove('hidden');
+  const liveCueDesktop = document.getElementById('liveCueDesktop');
+  if (liveCueDesktop) liveCueDesktop.classList.remove('hidden');
   liveBtn.title = `${loc.name} · last ping ${new Date(loc.timestampUTC).toUTCString()}`;
   // Keep an already-open popup's text current too, not just the dot on the map.
   if (!popupEl.classList.contains('hidden')) {
@@ -1057,6 +1068,8 @@ function initLiveLocation() {
   }
 
   liveBtn.addEventListener('click', jumpToLiveLocation);
+  const liveCueDesktopBtn = document.getElementById('liveCueDesktop');
+  if (liveCueDesktopBtn) liveCueDesktopBtn.addEventListener('click', jumpToLiveLocation);
   closeBtn.addEventListener('click', () => popupEl.classList.add('hidden'));
 
   // On mobile there's no room for a separate floating button — instead,
