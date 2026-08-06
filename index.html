@@ -171,18 +171,18 @@
   #liveLocationBtn{
     position:fixed;top:24px;right:24px;z-index:9;
     display:flex;align-items:center;gap:10px;
-    background:rgba(23,36,32,0.88);
-    border:1px solid var(--line);
-    color:var(--paper);
+    background:var(--paper);
+    border:1px solid var(--paper);
+    border-left:3px solid var(--rust);
+    color:var(--text-on-paper);
     padding:10px 18px 10px 14px;
-    border-radius:999px;
+    border-radius:6px;
     font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.04em;
     cursor:pointer;
-    backdrop-filter:blur(4px);
-    box-shadow:0 8px 24px rgba(0,0,0,0.4);
+    box-shadow:0 8px 24px rgba(0,0,0,0.35);
     transition:opacity .4s ease, transform .15s ease;
   }
-  #liveLocationBtn:hover{transform:translateY(-1px);border-color:var(--rust);}
+  #liveLocationBtn:hover{transform:translateY(-1px);}
   #liveLocationBtn.hidden{opacity:0;pointer-events:none;transform:translateY(-6px);}
   #liveLocationBtn .dot-icon{
     width:9px;height:9px;border-radius:50%;
