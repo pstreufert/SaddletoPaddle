@@ -192,21 +192,14 @@
     100%{box-shadow:0 0 0 0 rgba(193,89,44,0);}
   }
   @media (max-width:640px){
-    #liveLocationBtn{
-      top:auto;bottom:104px;left:16px;right:auto;
-      background:none;border:none;box-shadow:none;
-      padding:0;backdrop-filter:none;
-      font-size:12px;letter-spacing:0.08em;
-      color:#4A4A4A;text-shadow:none;
-    }
-    #liveLocationBtn .btn-text{display:inline;}
-    #liveLocationBtn .dot-icon{width:7px;height:7px;}
+    #liveLocationBtn{display:none;}
+    .scroll-cue.live-clickable{cursor:pointer;}
     #liveLocationPopup{
-      top:auto;bottom:140px;right:16px;left:16px;width:auto;
+      top:auto;bottom:100px;right:16px;left:16px;width:auto;
       padding:10px 12px;
     }
-    #liveLocationPopup .pop-eyebrow{font-size:8px;margin-bottom:3px;}
-    #liveLocationPopup .pop-name{font-size:9px;margin-bottom:1px;}
+    #liveLocationPopup .pop-eyebrow,
+    #liveLocationPopup .pop-name{display:none;}
     #liveLocationPopup .pop-leg{font-size:14px;margin-bottom:4px;padding-bottom:4px;}
     #liveLocationPopup .pop-row{font-size:10px;margin:2px 0;}
     #liveLocationPopup .pop-row:first-of-type{display:none;}
@@ -396,7 +389,7 @@
     <div class="cell"><span class="num">6</span><span class="lbl">States</span></div>
     <div class="cell"><span class="num">1</span><span class="lbl">Bike, Asked to Do It All</span></div>
   </div>
-  <div class="scroll-cue"><span class="arrow">↓</span> SCROLL TO FOLLOW THE ROUTE</div>
+  <div class="scroll-cue" id="scrollCue"><span class="arrow">↓</span> <span id="scrollCueText">SCROLL TO FOLLOW THE ROUTE</span></div>
 </div>
 
 <div id="story"></div>
@@ -1006,7 +999,7 @@ function initLiveLocation() {
 
   const closeBtn = document.getElementById('liveLocationClose');
 
-  liveBtn.addEventListener('click', () => {
+  function jumpToLiveLocation() {
     if (!liveLocation) return;
     map.flyTo({
       center: [liveLocation.lon, liveLocation.lat],
@@ -1016,12 +1009,24 @@ function initLiveLocation() {
       duration: 1800,
       essential: true,
     });
-
     updatePopupContent(liveLocation);
     popupEl.classList.remove('hidden');
-  });
+  }
 
+  liveBtn.addEventListener('click', jumpToLiveLocation);
   closeBtn.addEventListener('click', () => popupEl.classList.add('hidden'));
+
+  // On mobile there's no room for a separate floating button — instead,
+  // repurpose the hero's own scroll cue as the trigger.
+  if (window.matchMedia('(max-width:640px)').matches) {
+    const scrollCue = document.getElementById('scrollCue');
+    const scrollCueText = document.getElementById('scrollCueText');
+    if (scrollCue && scrollCueText) {
+      scrollCueText.textContent = 'JUMP TO OUR LOCATION';
+      scrollCue.classList.add('live-clickable');
+      scrollCue.addEventListener('click', jumpToLiveLocation);
+    }
+  }
 
   // Dismiss the popup as soon as the user starts scrolling again, rather
   // than leaving it pinned on screen through the rest of the story.
