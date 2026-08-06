@@ -196,19 +196,20 @@
       top:auto;bottom:104px;left:16px;right:auto;
       background:none;border:none;box-shadow:none;
       padding:0;backdrop-filter:none;
-      color:var(--paper);
-      text-shadow:0 1px 4px rgba(0,0,0,0.85), 0 0 10px rgba(0,0,0,0.6);
+      font-size:12px;letter-spacing:0.08em;
+      color:#4A4A4A;text-shadow:none;
     }
     #liveLocationBtn .btn-text{display:inline;}
-    #liveLocationBtn .dot-icon{width:8px;height:8px;}
+    #liveLocationBtn .dot-icon{width:7px;height:7px;}
     #liveLocationPopup{
-      top:auto;bottom:144px;right:16px;left:16px;width:auto;
-      padding:12px 14px;
+      top:auto;bottom:140px;right:16px;left:16px;width:auto;
+      padding:10px 12px;
     }
-    #liveLocationPopup .pop-eyebrow{font-size:9px;margin-bottom:5px;}
-    #liveLocationPopup .pop-name{font-size:10px;margin-bottom:2px;}
-    #liveLocationPopup .pop-leg{font-size:15px;margin-bottom:6px;padding-bottom:6px;}
-    #liveLocationPopup .pop-row{font-size:10.5px;margin:4px 0;}
+    #liveLocationPopup .pop-eyebrow{font-size:8px;margin-bottom:3px;}
+    #liveLocationPopup .pop-name{font-size:9px;margin-bottom:1px;}
+    #liveLocationPopup .pop-leg{font-size:14px;margin-bottom:4px;padding-bottom:4px;}
+    #liveLocationPopup .pop-row{font-size:10px;margin:2px 0;}
+    #liveLocationPopup .pop-row:first-of-type{display:none;}
   }
 
   #liveLocationPopup{
@@ -1021,6 +1022,12 @@ function initLiveLocation() {
   });
 
   closeBtn.addEventListener('click', () => popupEl.classList.add('hidden'));
+
+  // Dismiss the popup as soon as the user starts scrolling again, rather
+  // than leaving it pinned on screen through the rest of the story.
+  window.addEventListener('scroll', () => {
+    if (!popupEl.classList.contains('hidden')) popupEl.classList.add('hidden');
+  }, { passive: true });
 }
 
 function setRevealState(doneUpTo) {
