@@ -1,2 +1,2 @@
 /*
-  Content-Security-Policy: frame-ancestors 'self' http://localhost:4321 https://rodeo-labs.com https://*.rodeo-labs.com;
+  Content-Security-Policy: frame-ancestors 'self' http://localhost:4323 https://rodeo-labs.com https://*.rodeo-labs.com;
