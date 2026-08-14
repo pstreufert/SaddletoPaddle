@@ -27,7 +27,7 @@
     --text-on-paper: #241F16;
   }
   *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;background:var(--ink);color:var(--paper);font-family:'Newsreader',serif;}
+  html,body{margin:0;padding:0;background:var(--ink);color:var(--paper);font-family:'Newsreader',serif;overscroll-behavior-y:contain;}
   ::selection{background:var(--rust);color:var(--paper);}
 
   #map{position:fixed;inset:0;width:100%;height:100%;}
@@ -1008,19 +1008,12 @@ function cameraForFeature(feature, extra, duration) {
   const padding = isMobile
     ? { top: 60, bottom: window.innerHeight * 0.52, left: 40, right: 40 }
     : { top: 100, bottom: 100, left: window.innerWidth * 0.42, right: 100 };
-  // Bearing used to be (order * 17) % 60 - 30, which sounds harmless but
-  // swings by as much as 43 degrees between adjacent chapters (e.g. order 3
-  // to order 4: 21 to -22). That's the map visibly rotating hard one way on
-  // one chapter, then getting yanked back the other way on the next -- on
-  // every single transition, not just fast scrolling. Fixed to north-up so
-  // panning between legs reads as continuous progress along the route
-  // instead of the camera fighting itself each time it re-orients.
   map.fitBounds(bounds, {
     padding,
     duration: duration === undefined ? 1200 : duration,
     easing: easeInOutCubic,
     pitch: 55,
-    bearing: 0,
+    bearing: (feature.properties.order * 17) % 60 - 30,
     essential: true,
     maxZoom: 11,
   });
