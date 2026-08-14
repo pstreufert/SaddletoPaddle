@@ -1008,9 +1008,22 @@ function cameraForFeature(feature, extra, duration) {
   const padding = isMobile
     ? { top: 60, bottom: window.innerHeight * 0.52, left: 40, right: 40 }
     : { top: 100, bottom: 100, left: window.innerWidth * 0.42, right: 100 };
+
+  // If a previous flight is still in the air, this one is interrupting it --
+  // MapLibre redirects the animation toward the new target, but a full slow
+  // 1200ms arc mid-redirect visually reads as the camera reversing direction
+  // before jumping. Cutting the duration way down for interruptions makes
+  // that redirect a quick snap instead of a second leisurely flight, without
+  // ever delaying *when* the camera responds (that stays fully in sync with
+  // the line-fill and reveal state, which are never delayed).
+  const now = performance.now();
+  const isInterrupting = now < cameraForFeature._flightEndsAt;
+  const flightDuration = duration !== undefined ? duration : (isInterrupting ? 320 : 1200);
+  cameraForFeature._flightEndsAt = now + flightDuration;
+
   map.fitBounds(bounds, {
     padding,
-    duration: duration === undefined ? 1200 : duration,
+    duration: flightDuration,
     easing: easeInOutCubic,
     pitch: 55,
     bearing: (feature.properties.order * 17) % 60 - 30,
@@ -1018,33 +1031,9 @@ function cameraForFeature(feature, extra, duration) {
     maxZoom: 11,
   });
 }
+cameraForFeature._flightEndsAt = 0;
 
 /* ---------- Scrollama ---------- */
-
-// Debounces the camera trigger. Without this, fast scrolling past two
-// chapter boundaries within cameraForFeature's ~1200ms flight time fires a
-// SECOND fitBounds() before the first finishes -- MapLibre interrupts the
-// in-flight animation and redirects toward the new target, which looks
-// exactly like the camera moving correctly, snapping backward, then
-// jumping: it's actually two competing flights, not one broken one.
-// Waiting a beat after the last onStepEnter before committing to a camera
-// move means a fast scroll-through settles on ONE flight, to the chapter
-// the user actually lands on, instead of racing through every chapter
-// they passed on the way there.
-let cameraDebounceTimer = null;
-let pendingCameraCall = null;
-function scheduleCameraForFeature(feature, extra, duration) {
-  pendingCameraCall = { feature, extra, duration };
-  if (cameraDebounceTimer) clearTimeout(cameraDebounceTimer);
-  cameraDebounceTimer = setTimeout(() => {
-    cameraDebounceTimer = null;
-    if (pendingCameraCall) {
-      cameraForFeature(pendingCameraCall.feature, pendingCameraCall.extra, pendingCameraCall.duration);
-      pendingCameraCall = null;
-    }
-  }, 120);
-}
-
 function initScrollama() {
   const scroller = scrollama();
   let pendingProgressUpdate = null;
@@ -1060,7 +1049,7 @@ function initScrollama() {
       const key = element.dataset.chapterKey;
       const feature = featureByChapter.get(key);
       if (!feature) return;
-      scheduleCameraForFeature(feature, null);
+      cameraForFeature(feature, null);
       const doneUpTo = direction === 'down' ? feature.properties.order - 1 : feature.properties.order;
       setRevealState(doneUpTo);
       updateJourneyProgress(feature, direction === 'down' ? 0 : 1);
