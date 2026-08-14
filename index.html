@@ -27,7 +27,7 @@
     --text-on-paper: #241F16;
   }
   *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;background:var(--ink);color:var(--paper);font-family:'Newsreader',serif;overscroll-behavior-y:contain;}
+  html,body{margin:0;padding:0;background:var(--ink);color:var(--paper);font-family:'Newsreader',serif;}
   ::selection{background:var(--rust);color:var(--paper);}
 
   #map{position:fixed;inset:0;width:100%;height:100%;}
@@ -609,6 +609,17 @@ function buildOverviewSvg() {
 buildOverviewSvg();
 
 /* ---------- Map setup ---------- */
+// Embedded iframes get lower network-request priority from the browser than
+// top-level pages. This map streams in real elevation tiles for its 3D
+// terrain (below), and fitBounds() needs that data to correctly compute a
+// tilted (pitch:55) camera position -- if the tiles for a chapter's area
+// haven't arrived yet, it flies using an estimate, then visibly corrects
+// once the real terrain data lands a moment later. That correction is the
+// bounce. Standalone, tiles load fast enough it's never noticeable;
+// embedded, deprioritized loading makes it visible. Skipping terrain only
+// when embedded removes the race entirely rather than trying to win it.
+const isEmbedded = window.self !== window.top;
+
 const map = new maplibregl.Map({
   container: 'map',
   style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
@@ -733,15 +744,18 @@ function updateJourneyProgress(activeFeature, progress) {
 }
 
 map.on('load', () => {
-  // Terrain / hillshade (AWS open terrain tiles, terrarium encoding, no key required)
-  map.addSource('terrain-src', {
-    type: 'raster-dem',
-    tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
-    tileSize: 256,
-    encoding: 'terrarium',
-    maxzoom: 14,
-  });
-  map.setTerrain({ source: 'terrain-src', exaggeration: 1.3 });
+  // Terrain / hillshade (AWS open terrain tiles, terrarium encoding, no key required).
+  // Skipped when embedded -- see the isEmbedded comment above.
+  if (!isEmbedded) {
+    map.addSource('terrain-src', {
+      type: 'raster-dem',
+      tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+      tileSize: 256,
+      encoding: 'terrarium',
+      maxzoom: 14,
+    });
+    map.setTerrain({ source: 'terrain-src', exaggeration: 1.3 });
+  }
 
   // Full route source (static)
   map.addSource('route-full', { type: 'geojson', data: ROUTE_DATA });
