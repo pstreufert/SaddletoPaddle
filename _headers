@@ -1,2 +1,2 @@
 /*
-  Content-Security-Policy: frame-ancestors 'self' http://localhost:4325 http://localhost:4326 http://localhost:4324 silly-kelpie-eab769.netlify.app https://rodeo-labs.com https://*.rodeo-labs.com;
+  Content-Security-Policy: frame-ancestors 'self' http://localhost:4322 http://localhost:4321 http://localhost:4323 http://localhost:4324 silly-kelpie-eab769.netlify.app https://rodeo-labs.com https://*.rodeo-labs.com;
