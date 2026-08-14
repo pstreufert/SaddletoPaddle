@@ -1008,30 +1008,23 @@ function cameraForFeature(feature, extra, duration) {
   const padding = isMobile
     ? { top: 60, bottom: window.innerHeight * 0.52, left: 40, right: 40 }
     : { top: 100, bottom: 100, left: window.innerWidth * 0.42, right: 100 };
-
-  // If a previous flight is still in the air, this one is interrupting it --
-  // MapLibre redirects the animation toward the new target, but a full slow
-  // 1200ms arc mid-redirect visually reads as the camera reversing direction
-  // before jumping. Cutting the duration way down for interruptions makes
-  // that redirect a quick snap instead of a second leisurely flight, without
-  // ever delaying *when* the camera responds (that stays fully in sync with
-  // the line-fill and reveal state, which are never delayed).
-  const now = performance.now();
-  const isInterrupting = now < cameraForFeature._flightEndsAt;
-  const flightDuration = duration !== undefined ? duration : (isInterrupting ? 320 : 1200);
-  cameraForFeature._flightEndsAt = now + flightDuration;
-
+  // Bearing used to be (order * 17) % 60 - 30, which sounds harmless but
+  // swings by as much as 43 degrees between adjacent chapters (e.g. order 3
+  // to order 4: 21 to -22). That's the map visibly rotating hard one way on
+  // one chapter, then getting yanked back the other way on the next -- on
+  // every single transition, not just fast scrolling. Fixed to north-up so
+  // panning between legs reads as continuous progress along the route
+  // instead of the camera fighting itself each time it re-orients.
   map.fitBounds(bounds, {
     padding,
-    duration: flightDuration,
+    duration: duration === undefined ? 1200 : duration,
     easing: easeInOutCubic,
     pitch: 55,
-    bearing: (feature.properties.order * 17) % 60 - 30,
+    bearing: 0,
     essential: true,
     maxZoom: 11,
   });
 }
-cameraForFeature._flightEndsAt = 0;
 
 /* ---------- Scrollama ---------- */
 function initScrollama() {
