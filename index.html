@@ -609,17 +609,6 @@ function buildOverviewSvg() {
 buildOverviewSvg();
 
 /* ---------- Map setup ---------- */
-// Embedded iframes get lower network-request priority from the browser than
-// top-level pages. This map streams in real elevation tiles for its 3D
-// terrain (below), and fitBounds() needs that data to correctly compute a
-// tilted (pitch:55) camera position -- if the tiles for a chapter's area
-// haven't arrived yet, it flies using an estimate, then visibly corrects
-// once the real terrain data lands a moment later. That correction is the
-// bounce. Standalone, tiles load fast enough it's never noticeable;
-// embedded, deprioritized loading makes it visible. Skipping terrain only
-// when embedded removes the race entirely rather than trying to win it.
-const isEmbedded = window.self !== window.top;
-
 const map = new maplibregl.Map({
   container: 'map',
   style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
@@ -744,18 +733,15 @@ function updateJourneyProgress(activeFeature, progress) {
 }
 
 map.on('load', () => {
-  // Terrain / hillshade (AWS open terrain tiles, terrarium encoding, no key required).
-  // Skipped when embedded -- see the isEmbedded comment above.
-  if (!isEmbedded) {
-    map.addSource('terrain-src', {
-      type: 'raster-dem',
-      tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      encoding: 'terrarium',
-      maxzoom: 14,
-    });
-    map.setTerrain({ source: 'terrain-src', exaggeration: 1.3 });
-  }
+  // Terrain / hillshade (AWS open terrain tiles, terrarium encoding, no key required)
+  map.addSource('terrain-src', {
+    type: 'raster-dem',
+    tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+    tileSize: 256,
+    encoding: 'terrarium',
+    maxzoom: 14,
+  });
+  map.setTerrain({ source: 'terrain-src', exaggeration: 1.3 });
 
   // Full route source (static)
   map.addSource('route-full', { type: 'geojson', data: ROUTE_DATA });
@@ -1015,6 +1001,10 @@ function easeInOutCubic(t) {
 }
 
 function cameraForFeature(feature, extra, duration) {
+  console.log(
+    `%c[t=${performance.now().toFixed(0)}] CAMERA -> order=${feature.properties.order} (${feature.properties.type})`,
+    'color:#0af'
+  );
   let coords = feature.geometry.coordinates.slice();
   if (extra) coords = coords.concat(extra);
   const bounds = bboxOfCoords(coords);
@@ -1034,6 +1024,16 @@ function cameraForFeature(feature, extra, duration) {
 }
 
 /* ---------- Scrollama ---------- */
+// TEMPORARY DIAGNOSTIC LOGGING -- open DevTools Console (F12) while
+// reproducing the bounce, then copy the logged lines here and send them
+// back. This will show us the ACTUAL sequence and timing of step
+// triggers, camera calls, and progress values, instead of guessing. Green
+// = chapter entered, orange = chapter exited, blue = camera move fired,
+// plain = progress tick, red/bold = progress went backward (the single
+// most useful signal -- if this never fires, the bug isn't in the
+// progress calculation and is somewhere in the camera/rendering instead).
+const lastCommittedProgress = new Map();
+
 function initScrollama() {
   const scroller = scrollama();
   let pendingProgressUpdate = null;
@@ -1047,6 +1047,10 @@ function initScrollama() {
     })
     .onStepEnter(({ element, direction }) => {
       const key = element.dataset.chapterKey;
+      console.log(
+        `%c[t=${performance.now().toFixed(0)}] STEP ENTER "${key}" dir=${direction}`,
+        'color:#0a8; font-weight:bold'
+      );
       const feature = featureByChapter.get(key);
       if (!feature) return;
       cameraForFeature(feature, null);
@@ -1056,6 +1060,10 @@ function initScrollama() {
     })
     .onStepExit(({ element, direction }) => {
       const key = element.dataset.chapterKey;
+      console.log(
+        `%c[t=${performance.now().toFixed(0)}] STEP EXIT  "${key}" dir=${direction}`,
+        'color:#a80; font-weight:bold'
+      );
       const feature = featureByChapter.get(key);
       if (!feature) return;
       const doneUpTo = direction === 'down' ? feature.properties.order : feature.properties.order - 1;
@@ -1070,10 +1078,20 @@ function initScrollama() {
         rafHandle = requestAnimationFrame(() => {
           rafHandle = null;
           if (!pendingProgressUpdate) return;
-          const feature = featureByChapter.get(pendingProgressUpdate.key);
+          const { key, progress } = pendingProgressUpdate;
+          const feature = featureByChapter.get(key);
           if (feature) {
-            updateActiveSlice(feature, pendingProgressUpdate.progress);
-            updateJourneyProgress(feature, pendingProgressUpdate.progress);
+            const prev = lastCommittedProgress.get(key);
+            if (prev !== undefined && progress < prev - 0.001) {
+              console.warn(
+                `%c[t=${performance.now().toFixed(0)}] \u26A0 PROGRESS WENT BACKWARD on "${key}": ${prev.toFixed(3)} -> ${progress.toFixed(3)}`,
+                'color:#f00; font-weight:bold; font-size:1.1em'
+              );
+            }
+            lastCommittedProgress.set(key, progress);
+            console.log(`[t=${performance.now().toFixed(0)}] progress "${key}": ${progress.toFixed(3)}`);
+            updateActiveSlice(feature, progress);
+            updateJourneyProgress(feature, progress);
           }
         });
       }
