@@ -1080,6 +1080,8 @@ function setTargetProgress(key, progress) {
 
 function initScrollama() {
   const scroller = scrollama();
+  let pendingProgressUpdate = null;
+  let rafHandle = null;
 
   scroller
     .setup({
@@ -1121,52 +1123,26 @@ function initScrollama() {
       extremeProgressByKey.set(key, direction === 'down' ? 1 : 0);
       setTargetProgress(key, direction === 'down' ? 1 : 0);
       updateJourneyProgress(feature, direction === 'down' ? 1 : 0);
-    });
-
-  // Scrollama's own progress tracking (onStepProgress, built on
-  // IntersectionObserver) is confirmed unreliable in this iframe -- it can
-  // go fully silent for several seconds mid-chapter during an ordinary
-  // scroll (verified via logging: STEP ENTER and STEP EXIT both fire
-  // correctly, bracketing a multi-second gap with zero progress events in
-  // between). IntersectionObserver is threshold-based, and browsers are
-  // allowed to skip firing it for intermediate thresholds if scrolling
-  // moves fast enough between the browser's own internal checks --
-  // nested iframes get their rendering/observation pipeline deprioritized,
-  // which makes this far more likely to bite here than standalone.
-  //
-  // Native `scroll` events don't have that threshold-skipping behavior, so
-  // this computes progress directly from actual element position instead
-  // of trusting Scrollama's internal calculation for it. Chapter
-  // boundaries (onStepEnter/onStepExit above) stay on Scrollama, since
-  // those have proven reliable -- only the continuous in-between tracking
-  // is replaced.
-  let scrollRafHandle = null;
-  function computeProgressFromScroll() {
-    scrollRafHandle = null;
-    const key = smoothActiveKey;
-    if (!key) return;
-    const el = document.querySelector(`.chapter[data-chapter-key="${key}"]`);
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const triggerY = window.innerHeight * 0.6; // matches the offset:0.6 used in scroller.setup() above
-    const raw = (triggerY - rect.top) / rect.height;
-    const progress = Math.max(0, Math.min(1, raw));
-
-    const dir = directionByKey.get(key) || 'down';
-    const prevExtreme = extremeProgressByKey.get(key) ?? (dir === 'down' ? 0 : 1);
-    const clamped = dir === 'down' ? Math.max(progress, prevExtreme) : Math.min(progress, prevExtreme);
-    extremeProgressByKey.set(key, clamped);
-    setTargetProgress(key, clamped);
-  }
-  window.addEventListener(
-    'scroll',
-    () => {
-      if (scrollRafHandle == null) {
-        scrollRafHandle = requestAnimationFrame(computeProgressFromScroll);
+    })
+    .onStepProgress(({ element, progress }) => {
+      const key = element.dataset.chapterKey;
+      pendingProgressUpdate = { key, progress };
+      if (rafHandle == null) {
+        rafHandle = requestAnimationFrame(() => {
+          rafHandle = null;
+          if (!pendingProgressUpdate) return;
+          const { key, progress } = pendingProgressUpdate;
+          const feature = featureByChapter.get(key);
+          if (feature) {
+            const dir = directionByKey.get(key) || 'down';
+            const prevExtreme = extremeProgressByKey.get(key) ?? (dir === 'down' ? 0 : 1);
+            const clamped = dir === 'down' ? Math.max(progress, prevExtreme) : Math.min(progress, prevExtreme);
+            extremeProgressByKey.set(key, clamped);
+            setTargetProgress(key, clamped);
+          }
+        });
       }
-    },
-    { passive: true }
-  );
+    });
 
   window.addEventListener('resize', scroller.resize);
 }
