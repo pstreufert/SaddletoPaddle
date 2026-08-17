@@ -1038,6 +1038,46 @@ function cameraForFeature(feature, extra, duration) {
 const extremeProgressByKey = new Map();
 const directionByKey = new Map();
 
+// Clamping stopped the visible backward bounce, but Scrollama's raw feed is
+// still uneven going forward -- it can stall for a stretch then jump several
+// points in one frame. Snapping the line/camera directly to that raw feed
+// still reads as skips and stalls even without the reversal. This adds a
+// continuous smoother on top: `targetProgress` is the clamped, trustworthy
+// value from Scrollama; `displayedProgress` eases toward it every frame on
+// its own independent rAF loop, so the visible motion stays fluid no matter
+// how bursty the underlying updates are.
+const targetProgressByKey = new Map();
+const displayedProgressByKey = new Map();
+let smoothActiveKey = null;
+let smoothRafHandle = null;
+
+function tickSmoothing() {
+  smoothRafHandle = null;
+  const key = smoothActiveKey;
+  if (!key) return;
+  const feature = featureByChapter.get(key);
+  if (!feature) return;
+  const target = targetProgressByKey.get(key) ?? 0;
+  const current = displayedProgressByKey.get(key) ?? target;
+  const next = current + (target - current) * 0.22;
+  const settled = Math.abs(target - next) < 0.001;
+  const value = settled ? target : next;
+  displayedProgressByKey.set(key, value);
+  updateActiveSlice(feature, value);
+  updateJourneyProgress(feature, value);
+  if (!settled) {
+    smoothRafHandle = requestAnimationFrame(tickSmoothing);
+  }
+}
+
+function setTargetProgress(key, progress) {
+  smoothActiveKey = key;
+  targetProgressByKey.set(key, progress);
+  if (smoothRafHandle == null) {
+    smoothRafHandle = requestAnimationFrame(tickSmoothing);
+  }
+}
+
 function initScrollama() {
   const scroller = scrollama();
   let pendingProgressUpdate = null;
@@ -1056,7 +1096,13 @@ function initScrollama() {
         'color:#0a8; font-weight:bold'
       );
       directionByKey.set(key, direction);
-      extremeProgressByKey.set(key, direction === 'down' ? 0 : 1);
+      const startProgress = direction === 'down' ? 0 : 1;
+      extremeProgressByKey.set(key, startProgress);
+      // hard reset, not smoothed -- a fresh chapter shouldn't ease in from
+      // wherever the previous chapter's line happened to leave off
+      displayedProgressByKey.set(key, startProgress);
+      targetProgressByKey.set(key, startProgress);
+      smoothActiveKey = key;
       const feature = featureByChapter.get(key);
       if (!feature) return;
       cameraForFeature(feature, null);
@@ -1090,15 +1136,8 @@ function initScrollama() {
             const dir = directionByKey.get(key) || 'down';
             const prevExtreme = extremeProgressByKey.get(key) ?? (dir === 'down' ? 0 : 1);
             const clamped = dir === 'down' ? Math.max(progress, prevExtreme) : Math.min(progress, prevExtreme);
-            if (clamped !== progress) {
-              console.warn(
-                `%c[t=${performance.now().toFixed(0)}] \u26A0 clamped "${key}": raw ${progress.toFixed(3)} -> using ${clamped.toFixed(3)}`,
-                'color:#f00; font-weight:bold'
-              );
-            }
             extremeProgressByKey.set(key, clamped);
-            updateActiveSlice(feature, clamped);
-            updateJourneyProgress(feature, clamped);
+            setTargetProgress(key, clamped);
           }
         });
       }
