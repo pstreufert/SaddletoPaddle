@@ -1024,15 +1024,19 @@ function cameraForFeature(feature, extra, duration) {
 }
 
 /* ---------- Scrollama ---------- */
-// TEMPORARY DIAGNOSTIC LOGGING -- open DevTools Console (F12) while
-// reproducing the bounce, then copy the logged lines here and send them
-// back. This will show us the ACTUAL sequence and timing of step
-// triggers, camera calls, and progress values, instead of guessing. Green
-// = chapter entered, orange = chapter exited, blue = camera move fired,
-// plain = progress tick, red/bold = progress went backward (the single
-// most useful signal -- if this never fires, the bug isn't in the
-// progress calculation and is somewhere in the camera/rendering instead).
-const lastCommittedProgress = new Map();
+// CONFIRMED via diagnostic logging: Scrollama's own internal progress
+// calculation produces genuinely non-monotonic values when running inside
+// this iframe (climbs to ~95%, smoothly reverses to ~50%, then snaps to
+// complete -- verified twice, identical signature both times, stack trace
+// confirms it originates inside scrollama.min.js itself, not our code).
+// Rather than chase why Scrollama's internal math misbehaves in this
+// context, this clamps what we ACT ON: track the most extreme progress
+// value seen per chapter (direction-aware -- max while scrolling down,
+// min while scrolling back up) and ignore any reading that regresses from
+// it. Scrollama can keep emitting bad numbers; the visible line/camera
+// just stops responding to the bad ones.
+const extremeProgressByKey = new Map();
+const directionByKey = new Map();
 
 function initScrollama() {
   const scroller = scrollama();
@@ -1051,6 +1055,8 @@ function initScrollama() {
         `%c[t=${performance.now().toFixed(0)}] STEP ENTER "${key}" dir=${direction}`,
         'color:#0a8; font-weight:bold'
       );
+      directionByKey.set(key, direction);
+      extremeProgressByKey.set(key, direction === 'down' ? 0 : 1);
       const feature = featureByChapter.get(key);
       if (!feature) return;
       cameraForFeature(feature, null);
@@ -1081,17 +1087,18 @@ function initScrollama() {
           const { key, progress } = pendingProgressUpdate;
           const feature = featureByChapter.get(key);
           if (feature) {
-            const prev = lastCommittedProgress.get(key);
-            if (prev !== undefined && progress < prev - 0.001) {
+            const dir = directionByKey.get(key) || 'down';
+            const prevExtreme = extremeProgressByKey.get(key) ?? (dir === 'down' ? 0 : 1);
+            const clamped = dir === 'down' ? Math.max(progress, prevExtreme) : Math.min(progress, prevExtreme);
+            if (clamped !== progress) {
               console.warn(
-                `%c[t=${performance.now().toFixed(0)}] \u26A0 PROGRESS WENT BACKWARD on "${key}": ${prev.toFixed(3)} -> ${progress.toFixed(3)}`,
-                'color:#f00; font-weight:bold; font-size:1.1em'
+                `%c[t=${performance.now().toFixed(0)}] \u26A0 clamped "${key}": raw ${progress.toFixed(3)} -> using ${clamped.toFixed(3)}`,
+                'color:#f00; font-weight:bold'
               );
             }
-            lastCommittedProgress.set(key, progress);
-            console.log(`[t=${performance.now().toFixed(0)}] progress "${key}": ${progress.toFixed(3)}`);
-            updateActiveSlice(feature, progress);
-            updateJourneyProgress(feature, progress);
+            extremeProgressByKey.set(key, clamped);
+            updateActiveSlice(feature, clamped);
+            updateJourneyProgress(feature, clamped);
           }
         });
       }
