@@ -1120,7 +1120,18 @@ function initScrollama() {
       if (!feature) return;
       const doneUpTo = direction === 'down' ? feature.properties.order : feature.properties.order - 1;
       setRevealState(doneUpTo);
-      map.getSource('active-seg') && map.getSource('active-seg').setData(emptyFC());
+      // Route through the smoother instead of snapping instantly. Under a
+      // fast scroll, IntersectionObserver can legally skip every
+      // intermediate progress threshold and go straight from "just
+      // entered" to "no longer intersecting" -- when that happens, this is
+      // the very first update the exiting chapter gets, and without this
+      // it hard-cuts straight to fully drawn instead of any visible
+      // motion. If the next chapter's onStepEnter fires right after (the
+      // common case, chapters are adjacent), its own hard reset takes over
+      // immediately, which is fine -- this only matters when there's any
+      // gap at all.
+      extremeProgressByKey.set(key, direction === 'down' ? 1 : 0);
+      setTargetProgress(key, direction === 'down' ? 1 : 0);
       updateJourneyProgress(feature, direction === 'down' ? 1 : 0);
     })
     .onStepProgress(({ element, progress }) => {
