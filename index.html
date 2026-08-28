@@ -113,13 +113,18 @@
     font-size:10px;letter-spacing:0.1em;text-transform:uppercase;
     color:var(--amber);margin-top:4px;display:block;
   }
+  .cue-row{
+    margin-top:56px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  }
   .scroll-cue{
-    margin-top:56px;font-family:'JetBrains Mono',monospace;font-size:12px;
+    font-family:'JetBrains Mono',monospace;font-size:12px;
     color:#4A4A4A;letter-spacing:0.08em;
     display:flex;align-items:center;gap:10px;
   }
   .scroll-cue .arrow{animation:bob 1.8s ease-in-out infinite;}
   @keyframes bob{0%,100%{transform:translateY(0);}50%{transform:translateY(6px);}}
+  .scroll-cue.live-cue{cursor:pointer;transition:opacity .4s ease;}
+  .scroll-cue.live-cue.hidden{opacity:0;pointer-events:none;}
 
   /* ---------- CHAPTERS ---------- */
   #story{position:relative;z-index:5;}
@@ -166,18 +171,18 @@
   #liveLocationBtn{
     position:fixed;top:24px;right:24px;z-index:9;
     display:flex;align-items:center;gap:10px;
-    background:rgba(23,36,32,0.88);
-    border:1px solid var(--line);
-    color:var(--paper);
+    background:var(--paper);
+    border:1px solid var(--paper);
+    border-left:3px solid var(--rust);
+    color:var(--text-on-paper);
     padding:10px 18px 10px 14px;
-    border-radius:999px;
+    border-radius:6px;
     font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.04em;
     cursor:pointer;
-    backdrop-filter:blur(4px);
-    box-shadow:0 8px 24px rgba(0,0,0,0.4);
+    box-shadow:0 8px 24px rgba(0,0,0,0.35);
     transition:opacity .4s ease, transform .15s ease;
   }
-  #liveLocationBtn:hover{transform:translateY(-1px);border-color:var(--rust);}
+  #liveLocationBtn:hover{transform:translateY(-1px);}
   #liveLocationBtn.hidden{opacity:0;pointer-events:none;transform:translateY(-6px);}
   #liveLocationBtn .dot-icon{
     width:9px;height:9px;border-radius:50%;
@@ -190,11 +195,6 @@
     0%{box-shadow:0 0 0 0 rgba(193,89,44,0.55);}
     70%{box-shadow:0 0 0 9px rgba(193,89,44,0);}
     100%{box-shadow:0 0 0 0 rgba(193,89,44,0);}
-  }
-  @media (max-width:640px){
-    #liveLocationBtn{top:auto;bottom:100px;right:16px;padding:10px 14px;}
-    #liveLocationBtn .btn-text{display:none;}
-    #liveLocationPopup{top:auto;bottom:150px;right:16px;left:16px;}
   }
 
   #liveLocationPopup{
@@ -217,8 +217,12 @@
     font-size:10px;letter-spacing:0.12em;color:var(--amber);margin-bottom:8px;
   }
   #liveLocationPopup .pop-name{
-    font-size:14px;color:var(--paper);margin-bottom:10px;
-    padding-bottom:10px;border-bottom:1px solid var(--line);
+    font-size:11px;color:var(--paper-dim);margin-bottom:4px;
+  }
+  #liveLocationPopup .pop-leg{
+    font-family:'Big Shoulders Display',sans-serif;font-weight:700;
+    font-size:19px;line-height:1.15;color:var(--paper);
+    margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--line);
   }
   #liveLocationPopup .pop-row{
     display:flex;justify-content:space-between;gap:10px;
@@ -231,6 +235,24 @@
     font-size:18px;line-height:1;cursor:pointer;padding:4px;
   }
   #liveLocationClose:hover{color:var(--paper);}
+
+  @media (max-width:640px){
+    #liveLocationBtn{display:none;}
+    #liveCueDesktop{display:none;}
+    .scroll-cue.live-clickable{cursor:pointer;}
+    #liveLocationPopup{
+      top:auto;bottom:100px;right:16px;left:16px;width:auto;
+      padding:8px 10px;
+    }
+    #liveLocationPopup .pop-eyebrow,
+    #liveLocationPopup .pop-name{display:none;}
+    #liveLocationPopup .pop-leg{
+      font-size:13px;line-height:1.1;margin-bottom:3px;padding-bottom:3px;
+    }
+    #liveLocationPopup .pop-row{font-size:9.5px;margin:1px 0;}
+    #liveLocationPopup .pop-row:first-of-type{display:none;}
+    #liveLocationClose{top:4px;right:6px;font-size:16px;padding:2px;}
+  }
 
   #elevationProfile{
     position:fixed;left:0;bottom:0;width:100%;height:90px;z-index:6;
@@ -312,11 +334,18 @@
   }
 
   @media (max-width:640px){
-    .chapter{padding:6vh 5vw;}
-    .chapter .card{max-width:100%;padding:26px 22px 20px;}
+    .chapter{padding:4vh 5vw;}
+    .chapter .card{max-width:100%;padding:18px 16px 14px;}
+    .card h2{font-size:1.55rem;margin:0 0 10px;}
+    .card p{font-size:0.9rem;line-height:1.45;margin:0 0 8px;}
+    .card .legkind{margin-bottom:6px;font-size:10px;}
+    .card .miles-row{margin-top:12px;padding-top:10px;}
     .stamp{grid-template-columns:repeat(2,auto);}
     .stamp .cell:nth-child(2){border-right:none;}
     .hero-title-plate{max-width:100%;}
+    #peakLabels{display:none;}
+    #outro .ask{grid-template-columns:1fr;max-width:100%;}
+    #outro .ask .item{padding:16px 18px;}
   }
 
   @media (prefers-reduced-motion: reduce){
@@ -332,13 +361,14 @@
 
 <button id="liveLocationBtn" class="hidden">
   <span class="dot-icon"></span>
-  <span class="btn-text">Jump to current location</span>
+  <span class="btn-text">Where are we now?</span>
 </button>
 
 <div id="liveLocationPopup" class="hidden">
   <button id="liveLocationClose" aria-label="Close">&times;</button>
   <div class="pop-eyebrow">LIVE POSITION</div>
   <div class="pop-name" id="popName">—</div>
+  <div class="pop-leg" id="popLeg">—</div>
   <div class="pop-row"><span class="pop-label">Coordinates</span><span id="popCoords">—</span></div>
   <div class="pop-row"><span class="pop-label">Last ping</span><span id="popTime">—</span></div>
 </div>
@@ -369,7 +399,10 @@
     <div class="cell"><span class="num">6</span><span class="lbl">States</span></div>
     <div class="cell"><span class="num">1</span><span class="lbl">Bike, Asked to Do It All</span></div>
   </div>
-  <div class="scroll-cue"><span class="arrow">↓</span> SCROLL TO FOLLOW THE ROUTE</div>
+  <div class="cue-row">
+    <div class="scroll-cue" id="scrollCue"><span class="arrow">↓</span> <span id="scrollCueText">SCROLL TO FOLLOW THE ROUTE</span></div>
+    <div class="scroll-cue live-cue hidden" id="liveCueDesktop">· <span id="liveCueText">JUMP TO OUR LOCATION</span></div>
+  </div>
 </div>
 
 <div id="story"></div>
@@ -377,13 +410,13 @@
 <div id="outro">
   <div class="outro-grid">
     <div class="outro-text">
-      <div class="eyebrow">THE ASK</div>
+      <div class="eyebrow">THE QUESTION</div>
       <h2>How much can one bike do?</h2>
       <p>This route needs a bike that can do it all; haul heavy gear over rough trails on long days, then cruise over pavement and smooth gravel and eat miles the next. And on the river days, it needs to handle being lashed to a packraft and dragged through rapids, a job no bike was really designed for. The bike for this trip is the Flannimal 6.0.</p>
       <div class="ask">
-        <div class="item"><h3>What I can offer</h3><p>A route that's never been ridden, and a story worth telling.</p></div>
+        <div class="item"><h3>The Partnership</h3><p>A packrafting route that's never been connected. Made possible by Rodeo Labs.</p></div>
         <div class="item"><h3>Timeline</h3><p>September - October 2026</p></div>
-        <div class="item"><h3>What I'm asking</h3><p>A partner for the next adventure, and a platform to tell it.</p></div>
+        <div class="item"><h3>About Us</h3><p>Pete and Carter met at Middlebury College in Vermont and have been adventuring together since. They now live in Bozeman, Montana.</p></div>
       </div>
       <div class="signoff">
         Pete Streufert  ·  pete.o.streufert@gmail.com<br>
@@ -645,6 +678,22 @@ const traceStopEnd = document.getElementById('traceStopEnd');
 const traceGradientEl = document.getElementById('traceGradient');
 const MODE_COLOR = { bike: '#C1592C', connector: '#C1592C', river: '#3E92CC' };
 
+function smoothPathD(points) {
+  // Quadratic bezier through consecutive midpoints — smooths out sharp
+  // zigzags between points while keeping the curve close to the real data
+  // (no distortion of the underlying elevation values, just a softer render).
+  let d = `${points[0][0].toFixed(1)},${points[0][1].toFixed(1)}`;
+  for (let i = 1; i < points.length - 1; i++) {
+    const [x0, y0] = points[i];
+    const [x1, y1] = points[i + 1];
+    const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+    d += ` Q${x0.toFixed(1)},${y0.toFixed(1)} ${mx.toFixed(1)},${my.toFixed(1)}`;
+  }
+  const last = points[points.length - 1];
+  d += ` L${last[0].toFixed(1)},${last[1].toFixed(1)}`;
+  return d;
+}
+
 function buildElevationProfile() {
   const eles = ELEVATION_PROFILE.map(p => p[1]);
   const minE = Math.min(...eles), maxE = Math.max(...eles);
@@ -657,13 +706,9 @@ function buildElevationProfile() {
     return [x, y];
   });
 
-  let d = `M0,${PROFILE_H} L${profilePoints[0][0].toFixed(1)},${profilePoints[0][1].toFixed(1)}`;
-  let traceD = `M${profilePoints[0][0].toFixed(1)},${profilePoints[0][1].toFixed(1)}`;
-  for (let i = 1; i < profilePoints.length; i++) {
-    d += ` L${profilePoints[i][0].toFixed(1)},${profilePoints[i][1].toFixed(1)}`;
-    traceD += ` L${profilePoints[i][0].toFixed(1)},${profilePoints[i][1].toFixed(1)}`;
-  }
-  d += ` L${PROFILE_W},${PROFILE_H} Z`;
+  const curve = smoothPathD(profilePoints);
+  const d = `M0,${PROFILE_H} L${curve} L${PROFILE_W},${PROFILE_H} Z`;
+  const traceD = `M${curve}`;
   profileBg.setAttribute('d', d);
   profileFg.setAttribute('d', d);
   traceLine.setAttribute('d', traceD);
@@ -845,7 +890,7 @@ map.on('load', () => {
    ============================================================ */
 const LIVE_LOCATION_ENDPOINT = '/.netlify/functions/live-location';
 const LIVE_LOCATION_FALLBACK = {
-  name: 'Test point (Noah Gettings, Peru)',
+  name: 'Test point (Peter and Carter, Peru)',
   device: 'inReach Mini 2',
   lat: -13.30512,
   lon: -72.114086,
@@ -868,6 +913,67 @@ async function fetchLiveLocation() {
   return LIVE_LOCATION_FALLBACK;
 }
 
+const popupEl = document.getElementById('liveLocationPopup');
+const popName = document.getElementById('popName');
+const popLeg = document.getElementById('popLeg');
+const popCoords = document.getElementById('popCoords');
+const popTime = document.getElementById('popTime');
+
+// How far off the mapped route (in miles) a position can be before we
+// stop attributing it to a specific leg and just call it a side quest.
+const ON_ROUTE_THRESHOLD_MI = 20;
+
+function getLiveRouteState(lat, lon) {
+  let minDist = Infinity;
+  let nearestKey = null;
+  let nearestFeature = null;
+  let nearestIdx = -1;
+  for (const ch of CHAPTERS) {
+    const feature = featureByChapter.get(ch.key);
+    if (!feature) continue;
+    const coords = feature.geometry.coordinates;
+    for (let i = 0; i < coords.length; i++) {
+      const d = haversineMi([lon, lat], coords[i]);
+      if (d < minDist) {
+        minDist = d;
+        nearestKey = ch.key;
+        nearestFeature = feature;
+        nearestIdx = i;
+      }
+    }
+  }
+  if (!nearestFeature || minDist > ON_ROUTE_THRESHOLD_MI) {
+    return { onRoute: false };
+  }
+  const coords = nearestFeature.geometry.coordinates;
+  const fraction = coords.length > 1 ? nearestIdx / (coords.length - 1) : 0;
+  const ch = CHAPTERS.find(c => c.key === nearestKey);
+  return { onRoute: true, chapterKey: nearestKey, chapter: ch, feature: nearestFeature, fraction };
+}
+
+function legLabelFromState(state) {
+  if (!state.onRoute) return 'Side questing';
+  const verb = state.chapter.type === 'river' ? 'Rafting' : 'Biking';
+  return `${verb} · ${state.chapter.title}`;
+}
+
+function formatTimeAgo(iso) {
+  const ms = Date.now() - new Date(iso).getTime();
+  const min = Math.round(ms / 60000);
+  if (min < 60) return `${min} min ago`;
+  const hr = Math.round(min / 60);
+  if (hr < 48) return `${hr} hr ago`;
+  return `${Math.round(hr / 24)} days ago`;
+}
+
+function updatePopupContent(loc, state) {
+  popName.textContent = 'Pete and Carter are';
+  popLeg.textContent = legLabelFromState(state);
+  popCoords.textContent = `${loc.lat.toFixed(4)}, ${loc.lon.toFixed(4)}`;
+  popTime.textContent = `${formatTimeAgo(loc.timestampUTC)} (${new Date(loc.timestampUTC).toUTCString()})`;
+}
+
+
 function renderLiveLocation(loc) {
   liveLocation = loc;
   const src = map.getSource('live-position');
@@ -879,7 +985,13 @@ function renderLiveLocation(loc) {
     });
   }
   liveBtn.classList.remove('hidden');
+  const liveCueDesktop = document.getElementById('liveCueDesktop');
+  if (liveCueDesktop) liveCueDesktop.classList.remove('hidden');
   liveBtn.title = `${loc.name} · last ping ${new Date(loc.timestampUTC).toUTCString()}`;
+  // Keep an already-open popup's text current too, not just the dot on the map.
+  if (!popupEl.classList.contains('hidden')) {
+    updatePopupContent(loc, getLiveRouteState(loc.lat, loc.lon));
+  }
 }
 
 function initLiveLocation() {
@@ -904,23 +1016,47 @@ function initLiveLocation() {
 
   fetchLiveLocation().then(renderLiveLocation);
 
-  const popup = document.getElementById('liveLocationPopup');
-  const popName = document.getElementById('popName');
-  const popCoords = document.getElementById('popCoords');
-  const popTime = document.getElementById('popTime');
+  // Keep checking for a new position periodically, so anyone leaving this
+  // page open sees updates without needing to reload. This is independent
+  // of your Garmin device's own ping interval — that's the real ceiling on
+  // how fresh the data ever is; this just controls how often the page asks.
+  const LIVE_LOCATION_POLL_MS = 3 * 60 * 1000; // every 3 minutes
+  setInterval(() => {
+    fetchLiveLocation().then(renderLiveLocation);
+  }, LIVE_LOCATION_POLL_MS);
+
   const closeBtn = document.getElementById('liveLocationClose');
 
-  function formatTimeAgo(iso) {
-    const ms = Date.now() - new Date(iso).getTime();
-    const min = Math.round(ms / 60000);
-    if (min < 60) return `${min} min ago`;
-    const hr = Math.round(min / 60);
-    if (hr < 48) return `${hr} hr ago`;
-    return `${Math.round(hr / 24)} days ago`;
+  function jumpToLiveLocation() {
+    if (!liveLocation) return;
+    const state = getLiveRouteState(liveLocation.lat, liveLocation.lon);
+
+    if (state.onRoute) {
+      const chapterEl = document.querySelector(`[data-chapter-key="${state.chapterKey}"]`);
+      if (chapterEl) chapterEl.scrollIntoView({ behavior: 'auto', block: 'center' });
+
+      // Sync the "already traveled" route styling, the progress bar, and the
+      // elevation-profile trace to match the live position, not just wherever
+      // the scroll happened to be before the button was clicked.
+      const doneUpTo = state.feature.properties.order - 1;
+      setRevealState(doneUpTo);
+      updateActiveSlice(state.feature, state.fraction);
+      updateJourneyProgress(state.feature, state.fraction);
+
+      // Scrolling can also trigger Scrollama's own chapter-camera transition
+      // asynchronously; give it a moment to settle, then apply the precise
+      // camera position last so it isn't overridden by that broader chapter
+      // framing.
+      setTimeout(() => flyToLivePosition(), 120);
+    } else {
+      flyToLivePosition();
+    }
+
+    updatePopupContent(liveLocation, state);
+    popupEl.classList.remove('hidden');
   }
 
-  liveBtn.addEventListener('click', () => {
-    if (!liveLocation) return;
+  function flyToLivePosition() {
     map.flyTo({
       center: [liveLocation.lon, liveLocation.lat],
       zoom: 9,
@@ -929,14 +1065,30 @@ function initLiveLocation() {
       duration: 1800,
       essential: true,
     });
+  }
 
-    popName.textContent = liveLocation.name || 'Current position';
-    popCoords.textContent = `${liveLocation.lat.toFixed(4)}, ${liveLocation.lon.toFixed(4)}`;
-    popTime.textContent = `${formatTimeAgo(liveLocation.timestampUTC)} (${new Date(liveLocation.timestampUTC).toUTCString()})`;
-    popup.classList.remove('hidden');
-  });
+  liveBtn.addEventListener('click', jumpToLiveLocation);
+  const liveCueDesktopBtn = document.getElementById('liveCueDesktop');
+  if (liveCueDesktopBtn) liveCueDesktopBtn.addEventListener('click', jumpToLiveLocation);
+  closeBtn.addEventListener('click', () => popupEl.classList.add('hidden'));
 
-  closeBtn.addEventListener('click', () => popup.classList.add('hidden'));
+  // On mobile there's no room for a separate floating button — instead,
+  // repurpose the hero's own scroll cue as the trigger.
+  if (window.matchMedia('(max-width:640px)').matches) {
+    const scrollCue = document.getElementById('scrollCue');
+    const scrollCueText = document.getElementById('scrollCueText');
+    if (scrollCue && scrollCueText) {
+      scrollCueText.textContent = 'CLICK TO JUMP TO OUR LOCATION';
+      scrollCue.classList.add('live-clickable');
+      scrollCue.addEventListener('click', jumpToLiveLocation);
+    }
+  }
+
+  // Dismiss the popup as soon as the user starts scrolling again, rather
+  // than leaving it pinned on screen through the rest of the story.
+  window.addEventListener('scroll', () => {
+    if (!popupEl.classList.contains('hidden')) popupEl.classList.add('hidden');
+  }, { passive: true });
 }
 
 function setRevealState(doneUpTo) {
@@ -1001,10 +1153,6 @@ function easeInOutCubic(t) {
 }
 
 function cameraForFeature(feature, extra, duration) {
-  console.log(
-    `%c[t=${performance.now().toFixed(0)}] CAMERA -> order=${feature.properties.order} (${feature.properties.type})`,
-    'color:#0af'
-  );
   let coords = feature.geometry.coordinates.slice();
   if (extra) coords = coords.concat(extra);
   const bounds = bboxOfCoords(coords);
@@ -1024,60 +1172,6 @@ function cameraForFeature(feature, extra, duration) {
 }
 
 /* ---------- Scrollama ---------- */
-// CONFIRMED via diagnostic logging: Scrollama's own internal progress
-// calculation produces genuinely non-monotonic values when running inside
-// this iframe (climbs to ~95%, smoothly reverses to ~50%, then snaps to
-// complete -- verified twice, identical signature both times, stack trace
-// confirms it originates inside scrollama.min.js itself, not our code).
-// Rather than chase why Scrollama's internal math misbehaves in this
-// context, this clamps what we ACT ON: track the most extreme progress
-// value seen per chapter (direction-aware -- max while scrolling down,
-// min while scrolling back up) and ignore any reading that regresses from
-// it. Scrollama can keep emitting bad numbers; the visible line/camera
-// just stops responding to the bad ones.
-const extremeProgressByKey = new Map();
-const directionByKey = new Map();
-
-// Clamping stopped the visible backward bounce, but Scrollama's raw feed is
-// still uneven going forward -- it can stall for a stretch then jump several
-// points in one frame. Snapping the line/camera directly to that raw feed
-// still reads as skips and stalls even without the reversal. This adds a
-// continuous smoother on top: `targetProgress` is the clamped, trustworthy
-// value from Scrollama; `displayedProgress` eases toward it every frame on
-// its own independent rAF loop, so the visible motion stays fluid no matter
-// how bursty the underlying updates are.
-const targetProgressByKey = new Map();
-const displayedProgressByKey = new Map();
-let smoothActiveKey = null;
-let smoothRafHandle = null;
-
-function tickSmoothing() {
-  smoothRafHandle = null;
-  const key = smoothActiveKey;
-  if (!key) return;
-  const feature = featureByChapter.get(key);
-  if (!feature) return;
-  const target = targetProgressByKey.get(key) ?? 0;
-  const current = displayedProgressByKey.get(key) ?? target;
-  const next = current + (target - current) * 0.22;
-  const settled = Math.abs(target - next) < 0.001;
-  const value = settled ? target : next;
-  displayedProgressByKey.set(key, value);
-  updateActiveSlice(feature, value);
-  updateJourneyProgress(feature, value);
-  if (!settled) {
-    smoothRafHandle = requestAnimationFrame(tickSmoothing);
-  }
-}
-
-function setTargetProgress(key, progress) {
-  smoothActiveKey = key;
-  targetProgressByKey.set(key, progress);
-  if (smoothRafHandle == null) {
-    smoothRafHandle = requestAnimationFrame(tickSmoothing);
-  }
-}
-
 function initScrollama() {
   const scroller = scrollama();
   let pendingProgressUpdate = null;
@@ -1091,18 +1185,6 @@ function initScrollama() {
     })
     .onStepEnter(({ element, direction }) => {
       const key = element.dataset.chapterKey;
-      console.log(
-        `%c[t=${performance.now().toFixed(0)}] STEP ENTER "${key}" dir=${direction}`,
-        'color:#0a8; font-weight:bold'
-      );
-      directionByKey.set(key, direction);
-      const startProgress = direction === 'down' ? 0 : 1;
-      extremeProgressByKey.set(key, startProgress);
-      // hard reset, not smoothed -- a fresh chapter shouldn't ease in from
-      // wherever the previous chapter's line happened to leave off
-      displayedProgressByKey.set(key, startProgress);
-      targetProgressByKey.set(key, startProgress);
-      smoothActiveKey = key;
       const feature = featureByChapter.get(key);
       if (!feature) return;
       cameraForFeature(feature, null);
@@ -1112,16 +1194,11 @@ function initScrollama() {
     })
     .onStepExit(({ element, direction }) => {
       const key = element.dataset.chapterKey;
-      console.log(
-        `%c[t=${performance.now().toFixed(0)}] STEP EXIT  "${key}" dir=${direction}`,
-        'color:#a80; font-weight:bold'
-      );
       const feature = featureByChapter.get(key);
       if (!feature) return;
       const doneUpTo = direction === 'down' ? feature.properties.order : feature.properties.order - 1;
       setRevealState(doneUpTo);
-      extremeProgressByKey.set(key, direction === 'down' ? 1 : 0);
-      setTargetProgress(key, direction === 'down' ? 1 : 0);
+      map.getSource('active-seg') && map.getSource('active-seg').setData(emptyFC());
       updateJourneyProgress(feature, direction === 'down' ? 1 : 0);
     })
     .onStepProgress(({ element, progress }) => {
@@ -1131,14 +1208,10 @@ function initScrollama() {
         rafHandle = requestAnimationFrame(() => {
           rafHandle = null;
           if (!pendingProgressUpdate) return;
-          const { key, progress } = pendingProgressUpdate;
-          const feature = featureByChapter.get(key);
+          const feature = featureByChapter.get(pendingProgressUpdate.key);
           if (feature) {
-            const dir = directionByKey.get(key) || 'down';
-            const prevExtreme = extremeProgressByKey.get(key) ?? (dir === 'down' ? 0 : 1);
-            const clamped = dir === 'down' ? Math.max(progress, prevExtreme) : Math.min(progress, prevExtreme);
-            extremeProgressByKey.set(key, clamped);
-            setTargetProgress(key, clamped);
+            updateActiveSlice(feature, pendingProgressUpdate.progress);
+            updateJourneyProgress(feature, pendingProgressUpdate.progress);
           }
         });
       }
